@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 
 
 int FileType(char *path, struct stat *buff){
@@ -26,8 +27,11 @@ int FileType(char *path, struct stat *buff){
     return -1;
 }
 
+void printName(char *filename){
+    printf("Name of file:%s\n", filename);
+}
+
 void menuForRegular(char *filename){
-    
     
     printf("---- MENU ----\n");
     printf("* n: name\n");
@@ -39,24 +43,204 @@ void menuForRegular(char *filename){
 
     char input[10];
     struct stat buff;
+
     fgets(input, 10, stdin);
     
+     if (stat(filename, &buff) == -1) {
+                            perror("stat");
+                  }
     for(int i=1;i<strlen(input)-1; i++){
         if(input[i]=='n')
-            printf("Name of file:%s\n", filename );
-        else
+            printName(filename);
+        else{
+
             if(input[i]=='d')
               printf("Size: %d bytes\n", (int)buff.st_size);
             else
                if(input[i]=='h')    
                   printf("Hard links count: %d\n", (int)buff.st_size);
                else
-                  if(input[i]=='m')
-                     printf("Time of last modification: %ld\n", buff.st_mtime);
-                     
+                  if(input[i]=='m'){
+                         printf("Time of last modification: %s\n", ctime(&buff.st_mtime));
+
+                  }
+                 
+        }
+         if (input[i] == 'l') {
+                char link[15];
+
+                printf("Give the name of symlink: ");
+                fgets(link, 15, stdin);
+
+                char *newline = strchr(link, '\n');
+                if (newline != NULL) {
+                    *newline = '\0';
+                }
+            
+                 if(symlink(filename, link) == 0) {
+                        printf("You succeed creating a symbolic link: %s\n", link);
+                    }
+                    else {
+                        printf("Fail :(");
+                    }
+                    printf("\n");
+                
+            }
+
+            if (input[i] == 'a') {
+                
+                    printf("Access rights: \n");
+
+                    printf("User:\n");
+                    buff.st_mode & S_IRUSR ? printf("   Read - yes\n") : printf("   Read - no\n");
+                    buff.st_mode & S_IWUSR ? printf("   Write - yes\n") : printf("   Write - no\n");
+                    buff.st_mode & S_IXUSR ? printf("   Execute - yes\n") : printf("   Execute - no\n");
+                        
+                    printf("Group:\n");
+                    buff.st_mode & S_IRGRP ? printf("   Read - yes\n") : printf("   Read - no\n");
+                    buff.st_mode & S_IWGRP ? printf("   Write - yes\n") : printf("   Write - no\n");
+                    buff.st_mode & S_IXGRP ? printf("   Execute - yes\n") : printf("   Execute - no\n");
+
+                    printf("Other:\n");
+                    buff.st_mode & S_IROTH ? printf("   Read - yes\n") : printf("   Read - no\n");
+                    buff.st_mode & S_IWOTH ? printf("   Write - yes\n") : printf("   Write - no\n");
+                    buff.st_mode & S_IXOTH ? printf("   Execute - yes\n") : printf("   Execute - no\n");
+
+                    printf("\n");
+                }
+    }
+}
+
+void menuForSymlink(char *filename){
+ 
+    printf("---- MENU ----\n");
+    printf("* n: name\n");
+    printf("* m: last time of modif\n");
+    printf("* a: access\n");
+     
+    printf("\nPlease enter your options\n\n");
+    printf("STANDARD INPUT: ");
+
+    char input[10];
+    struct stat buff;
+    fgets(input, 10, stdin);
+
+    for(int i=1;i<strlen(input)-1; i++){
+        if(input[i]=='n')
+            printName(filename);
+        if (input[i] == 'd') {
+                
+                    printf("Size of symbolic link: %d bytes\n", (int)buff.st_size);
+                    printf("\n");
+            }
+            if (input[i] == 't') {
+                if(stat(filename, &buff)) {
+                    printf("error\n");
+                }
+                else {
+                    printf("Size of target file: %d bytes\n", (int)buff.st_size);
+                    printf("\n");
+                }
+            }
+        }
+}
+
+void handle_c_file(char* filename) {
+    // Handle options for .c file
+    printf("Handling options for .c file %s\n", filename);
+
+    // Create second child process to execute script
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Child process
+        char* script_args[] = { "./script.sh", filename, NULL };
+        execvp(script_args[0], script_args);
+        perror("Error executing script");
+        exit(EXIT_FAILURE);
+    }
+    else if (pid < 0) {
+        perror("Error forking");
+        exit(EXIT_FAILURE);
+    }
+    else {
+        // Parent process
+        int status;
+        waitpid(pid, &status, 0);
+    }
+}
+
+    int main(int argc, char **argv){
+
+        for (int i = 1; i < argc; i++) {
+        pid_t pid = fork();
+        if (pid == 0) {
+            // Child process
+            handle_c_file(argv[i]);
+            exit(EXIT_SUCCESS);
+        }
+        else if (pid < 0) {
+            perror("Error forking");
+            exit(EXIT_FAILURE);
+        }
     }
 
+     int status;
+    pid_t w;
+    while ((w = wait(&status)) > 0) {
+        if (WIFEXITED(status)) {
+            printf("Child process %d exited with status %d\n", w, WEXITSTATUS(status));
+        }
+        else if (WIFSIGNALED(status)) {
+            printf("Child process %d terminated by signal %d\n", w, WTERMSIG(status));
+        }
+    }
 
+    return 0;
+}
+
+
+   /* main:
+    // Create child processes to handle each argument
+    for (int i = 1; i < argc; i++) {
+        pid_t pid = fork();
+        if (pid == 0) {
+            // Child process
+            handle_file(argv[i]);
+            exit(EXIT_SUCCESS);
+        }
+        else if (pid < 0) {
+            perror("Error forking");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    // Wait for child processes to finish
+    int status;
+    pid_t wpid;
+    while ((wpid = wait(&status)) > 0) {
+        if (WIFEXITED(status)) {
+            printf("Child process %d exited with status %d\n", wpid, WEXITSTATUS(status));
+        }
+        else if (WIFSIGNALED(status)) {
+            printf("Child process %d terminated by signal %d\n", wpid, WTERMSIG(status));
+        }
+    }
+
+}
+
+void menuForDir(char *filename){
+ 
+    printf("---- MENU ----\n");
+    printf("* n: name\n");
+    printf("* m: last time of modif\n");
+    printf("* a: access\n");
+     
+    printf("\nPlease enter your options\n\n");
+    printf("STANDARD INPUT: ");
+
+    char input[10];
+    struct stat buff;
+    fgets(input, 10, stdin);
 }
 
 int main(int argc, char **argv){
@@ -65,12 +249,14 @@ int main(int argc, char **argv){
     buff =(struct stat *)malloc(sizeof(struct stat));
 
     if(argc>1){
-        for(int i=0; i<argc; i++){//firstly we check which type of file do we have
+        for(int i=1; i<argc; i++){//firstly we check which type of file do we have
             int typeOfFile=FileType(argv[i], buff);
 
             if (typeOfFile==0){
                 printf("REGULAR FILE\n");
                 menuForRegular(argv[i]);
+
+                //printf("\n %d type of file\n",typeOfFile);
             }
 
             if (typeOfFile==1){
@@ -79,8 +265,10 @@ int main(int argc, char **argv){
 
             if (typeOfFile==2){
                 printf("SYMBOLIC LINK\n");
+                menuForSymlink(argv[i]);
+                
             }
         }
     }
 
-}
+}*/
