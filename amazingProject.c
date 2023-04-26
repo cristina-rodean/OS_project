@@ -37,7 +37,10 @@ void menuForRegular(char *filename){
     printf("* n: name\n");
     printf("* m: last time of modif\n");
     printf("* a: access\n");
-     
+    printf("* d: size of file\n");
+    printf("* h: count of hard links\n");
+    printf("* l: create symbolic link *waits for input*\n");
+
     printf("\nPlease enter your options\n\n");
     printf("STANDARD INPUT: ");
 
@@ -67,18 +70,18 @@ void menuForRegular(char *filename){
                  
         }
          if (input[i] == 'l') {
-                char link[15];
+                char createLink[15];
 
                 printf("Give the name of symlink: ");
-                fgets(link, 15, stdin);
+                fgets(createLink, 15, stdin);
 
-                char *newline = strchr(link, '\n');
+                char *newline = strchr(createLink, '\n');
                 if (newline != NULL) {
                     *newline = '\0';
                 }
             
-                 if(symlink(filename, link) == 0) {
-                        printf("You succeed creating a symbolic link: %s\n", link);
+                 if(symlink(filename, createLink) == 0) {
+                        printf("You succeed creating a symbolic link: %s\n", createLink);
                     }
                     else {
                         printf("Fail :(");
@@ -145,33 +148,37 @@ void menuForSymlink(char *filename){
         }
 }
 
-void handle_c_file(char* filename) {
-    // Handle options for .c file
-    printf("Handling options for .c file %s\n", filename);
 
-    // Create second child process to execute script
-    pid_t pid = fork();
-    if (pid == 0) {
-        // Child process
-        char* script_args[] = { "./script.sh", filename, NULL };
-        execvp(script_args[0], script_args);
-        perror("Error executing script");
-        exit(EXIT_FAILURE);
+int main(int argc, char **argv){
+
+    pid_t pid, w;
+    pid = fork();
+    int wstatus;
+
+    if(pid<0) {
+        printf("error fork()");
+        exit(1);
     }
-    else if (pid < 0) {
-        perror("Error forking");
-        exit(EXIT_FAILURE);
+    
+    if(pid==0) {
+         printf("this is the child process with pid %d \n", getpid());
+        
+        //execlp("ls", "ls", "-l", NULL);
+        exit(5);
     }
     else {
-        // Parent process
-        int status;
-        waitpid(pid, &status, 0);
+        if(pid>0) {
+            printf("this is the parent process\n");
+            w = wait(&wstatus);
+            if(WIFEXITED(wstatus)) {
+                printf("process with pid %d, exited, status = %d\n", w, WEXITSTATUS(wstatus));
+            }
+        }
     }
-}
+    return 0;
+    }
 
-    int main(int argc, char **argv){
-
-        for (int i = 1; i < argc; i++) {
+       /**for (int i = 1; i < argc; i++) {
         pid_t pid = fork();
         if (pid == 0) {
             // Child process
@@ -184,49 +191,21 @@ void handle_c_file(char* filename) {
         }
     }
 
-     int status;
+    int status;
     pid_t w;
     while ((w = wait(&status)) > 0) {
         if (WIFEXITED(status)) {
             printf("Child process %d exited with status %d\n", w, WEXITSTATUS(status));
         }
-        else if (WIFSIGNALED(status)) {
-            printf("Child process %d terminated by signal %d\n", w, WTERMSIG(status));
+        else 
+           if (WIFSIGNALED(status)) {
+              printf("Child process %d terminated by signal %d\n", w, WTERMSIG(status));
         }
     }
 
-    return 0;
-}
+    
 
 
-   /* main:
-    // Create child processes to handle each argument
-    for (int i = 1; i < argc; i++) {
-        pid_t pid = fork();
-        if (pid == 0) {
-            // Child process
-            handle_file(argv[i]);
-            exit(EXIT_SUCCESS);
-        }
-        else if (pid < 0) {
-            perror("Error forking");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    // Wait for child processes to finish
-    int status;
-    pid_t wpid;
-    while ((wpid = wait(&status)) > 0) {
-        if (WIFEXITED(status)) {
-            printf("Child process %d exited with status %d\n", wpid, WEXITSTATUS(status));
-        }
-        else if (WIFSIGNALED(status)) {
-            printf("Child process %d terminated by signal %d\n", wpid, WTERMSIG(status));
-        }
-    }
-
-}
 
 void menuForDir(char *filename){
  
