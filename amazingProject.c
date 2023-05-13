@@ -9,7 +9,10 @@
 
 int FileType(char *path, struct stat *buff){
     
-
+    if(lstat(path, buff)==0){ //for sym links
+        if(S_ISLNK(buff->st_mode)!=0) //if it's a symlink
+                return 2;
+    }
     if(stat(path, buff) == 0) { //for files and directories 
         if(S_ISREG(buff->st_mode) != 0) { //if it's a regular file
             return 0; 
@@ -18,11 +21,6 @@ int FileType(char *path, struct stat *buff){
             return 1;
         }
     } 
-
-    if(lstat(path, buff)==0){ //for sym links
-        if(S_ISLNK(buff->st_mode)!=0) //if it's a symlink
-                return 2;
-    }
 
     return -1;
 }
@@ -41,62 +39,32 @@ void menuForRegular(char *filename){
     printf("* h: count of hard links\n");
     printf("* l: create symbolic link\n");
 
-    printf("\nPlease enter your options\n\n");
-    printf("STANDARD INPUT: ");
+    printf("\nPlease enter your options:\n\n");
+    //printf("STANDARD INPUT: ");
 
     char input[10];
     struct stat buff;
 
     fgets(input, 10, stdin);
     
-     if (stat(filename, &buff) == -1) 
-               perror("stat");
+    if (stat(filename, &buff) == -1) 
+         perror("stat");
                   
     for(int i=1;i<strlen(input)-1; i++){
-
-        if(strcmp(filename, ".c")){
-                
-                pid_t pid;
-                pid = fork();
-                int wstatus;
-                
-                if (pid == 0) {
-                       // Child process
-                         execlp("bash", "bash", "compile.sh", NULL);
-                         exit(EXIT_SUCCESS);
-                }
-                else if (pid < 0) {
-                     perror("Error forking");
-                     exit(EXIT_FAILURE);
-                    }
-             int status;
-             pid_t w;
-             while ((w = wait(&status)) > 0) {
-                  if (WIFEXITED(status)) {
-                       printf("Child process %d exited with status %d\n", w, WEXITSTATUS(status));
-                  }
-                  else 
-                     if (WIFSIGNALED(status)) {
-                         printf("Child process %d terminated by signal %d\n", w, WTERMSIG(status));
-                      }
-            }  
-        }
 
         if(input[i]=='n')
             printName(filename);
         else{
-
             if(input[i]=='d')
               printf("Size: %d bytes\n", (int)buff.st_size);
             else
                if(input[i]=='h')    
-                  printf("Hard links count: %d\n", (int)buff.st_size);
+                  printf("Hard links count: %d\n",(int)buff.st_nlink);
                else
                   if(input[i]=='m'){
                          printf("Time of last modification: %s\n", ctime(&buff.st_mtime));
 
                   }
-                 
         }
          if (input[i] == 'l') {
                 char createLink[15];
@@ -140,10 +108,10 @@ void menuForRegular(char *filename){
 
                     printf("\n");
                 }
+            }
 
                 
     }
-}
 
 void menuForSymlink(char *filename){
  
@@ -152,29 +120,32 @@ void menuForSymlink(char *filename){
     printf("* a: access\n");
     printf("* d: size of symbolic link\n");
     printf("* t: size of target file\n");
-    printf("* l: delete symbolic link (if you choose this one the other options will no longer be\n");
+    printf("* l: delete symbolic link (if you choose this one the other options will no longer be executed)\n");
 
-    printf("\nPlease enter your options\n\n");
-    printf("STANDARD INPUT: ");
+    printf("\nPlease enter your options:\n\n");
+    //printf("STANDARD INPUT: ");
+
 
     char input[10];
     struct stat buff;
     fgets(input, 10, stdin);
     int delete=0;
 
-    for(int i=1;i<strlen(input)-1; i++){
-        if(input[i]=='n')
+    for(int i=1;i<strlen(input)-1 && delete==0; i++){
+        if(input[i]=='n' && delete==0)
             printName(filename);
-        if (input[i] == 'd') {
+        if (input[i] == 'd' && delete ==0) {
                 
                     printf("Size of symbolic link: %d bytes\n", (int)buff.st_size);
                     printf("\n");
         }
-        if (input[i] == 'l') {
+        if (input[i] == 'l') {//daca primesti l nu mai face ce e dupa
+            
             
            if(unlink(filename) == 0) {
                  printf("We deleted it :)\n");
                  delete= 1;
+                 
             }
            else {
                  printf("Deleting error :(\n");
@@ -188,12 +159,12 @@ void menuForSymlink(char *filename){
                     printf("An error has occurred\n");
                 }
                 else {
-                    printf("Size of target file: %d bytes\n", (int)buff.st_size);
+                   printf("Size of target file: %d bytes\n", (int)buff.st_size);
                     printf("\n");
                 }
         }
 
-        if (input[i] == 'a') {
+        if (input[i] == 'a' && delete==0) {
                 
             printf("Access rights: \n");
 
@@ -218,38 +189,6 @@ void menuForSymlink(char *filename){
 }
 
 
-/**int main(int argc, char **argv){
-
-    
-    return 0;
-    }
-
-       for (int i = 1; i < argc; i++) {
-        pid_t pid = fork();
-        if (pid == 0) {
-            // Child process
-            handle_c_file(argv[i]);
-            exit(EXIT_SUCCESS);
-        }
-        else if (pid < 0) {
-            perror("Error forking");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    int status;
-    pid_t w;
-    while ((w = wait(&status)) > 0) {
-        if (WIFEXITED(status)) {
-            printf("Child process %d exited with status %d\n", w, WEXITSTATUS(status));
-        }
-        else 
-           if (WIFSIGNALED(status)) {
-              printf("Child process %d terminated by signal %d\n", w, WTERMSIG(status));
-        }
-    }  
-*/
-
 
 void menuForDir(char *filename){
  
@@ -260,9 +199,10 @@ void menuForDir(char *filename){
     printf("* c: number of files with .c extension\n");
 
      
-    printf("\nPlease enter your options\n\n");
-    printf("STANDARD INPUT: ");
+    printf("\nPlease enter your options:\n\n");
+   // printf("STANDARD INPUT: ");
 
+    
     char input[10];
     struct stat buff;
     fgets(input, 10, stdin);
@@ -310,8 +250,8 @@ void menuForDir(char *filename){
                while ((entry = readdir(dir)) != NULL) {
                      if (entry->d_type == DT_REG) { // regular file
                           const char *dir_name = entry->d_name;
-                          size_t len = strlen(dir_name);
-                          if (len >= 2 && strcmp(dir_name + len - 2, ".c") == 0) 
+                          size_t length = strlen(dir_name);
+                          if (length >= 2 && strcmp(dir_name + length - 2, ".c") == 0) 
                                      count++;  
                      }
                }
@@ -321,61 +261,158 @@ void menuForDir(char *filename){
             }
     }  
 
-                   
-}
-/**pid_t pid, w;
-    pid = fork();
-    int wstatus;
-
-    if(pid<0) {
-        printf("error fork()");
-        exit(1);
-    }
-    
-    if(pid==0) {
-         printf("this is the child process with pid %d \n", getpid());
-        
-        //execlp("ls", "ls", "-l", NULL);
-        exit(5);
-    }
-    else {
-        if(pid>0) {
-            printf("this is the parent process\n");
-            w = wait(&wstatus);
-            if(WIFEXITED(wstatus)) {
-                printf("process with pid %d, exited, status = %d\n", w, WEXITSTATUS(wstatus));
-            }
-        }
-    }*/
+  }                  
 
 int main(int argc, char **argv){
 
     struct stat *buff;
     buff =(struct stat *)malloc(sizeof(struct stat));
 
-
-    if(argc>1){
-        for(int i=1; i<argc; i++){//firstly we check which type of file do we have
-            int typeOfFile=FileType(argv[i], buff);
-
-            if (typeOfFile==0){
-                printf("REGULAR FILE\n");
-                menuForRegular(argv[i]);
-                
-                //printf("\n %d type of file\n",typeOfFile);
-            }
-
-            if (typeOfFile==1){
-                printf("DIRECTORY\n");
-                menuForDir(argv[i]);
-            }
-
-            if (typeOfFile==2){
-                printf("SYMBOLIC LINK\n");
-                menuForSymlink(argv[i]);
-                
-            }
-        }
+    pid_t pid1, pid2, w;
+    int wstatus1, wstatus2;
+    
+    int isC=0;
+    int pipeArr[2];
+    if(pipe(pipeArr) == -1) {//pipe before fork
+        perror("Pipe couldn't be creted\n");
+        exit(1);
     }
 
-}
+    if(argc>1){
+        for(int i=1;i<argc; i++){
+            pid1=fork();
+
+            if(pid1==0){//this means we are in th child process            
+                    
+                    int typeOfFile=FileType(argv[i], buff);
+
+                     if (typeOfFile==0){
+                          printf("REGULAR FILE\n");
+                          menuForRegular(argv[i]);
+                    }
+
+                     if (typeOfFile==1){
+                          printf("DIRECTORY\n");
+                          menuForDir(argv[i]);
+                     }
+
+                     if (typeOfFile==2){
+                          printf("SYMBOLIC LINK\n");
+                          menuForSymlink(argv[i]);
+                
+                     }
+
+                     if(typeOfFile==-1){
+                          printf("Wrong type of argument");
+                     }
+                     exit(0);
+            }
+            pid2=fork(); //create another child
+            if(pid2==0){ //we are in the 2nd child
+                int typeOfFile=FileType(argv[i], buff);
+
+                     if (typeOfFile==0){ //we have reg file
+                          if( strstr(argv[i], ".c")!=0){
+                            isC++;
+                             printf("The file has: ");
+                             execlp("bash", "bash", "compile.sh", argv[i], NULL);
+                             exit(EXIT_FAILURE);
+                            // printf("c file");
+                          }
+                          else
+                            if(strrchr(argv[i], '.')!=NULL && strstr(argv[i], ".c")==0){
+                                printf("Hence the file does not have .c extension we will print the number of lines");
+                                printf("Number of lines of the file: ");
+                                execl("/usr/bin/wc", "wc", "-l", argv[i], NULL);
+                                exit(EXIT_FAILURE);
+                                
+                            }
+                    }
+
+                     if (typeOfFile==1){//we have a dir
+                            printf("\nThis is a directory, so a new file will be created");
+                            char filename[100];
+                            snprintf(filename, sizeof(filename), "%s/%s_file.txt", argv[1], argv[1]);
+
+                            execlp("touch", "touch", filename,argv[1], NULL);
+
+                             // If we get here, execlp() failed
+                             if(filename==NULL) {
+                                 printf("File was not created");
+                                 exit(1);
+                             }
+                             exit(3);
+                         }
+                     
+                     if (typeOfFile==2){//we have a symlink
+                           printf("This is a symlink, so the target file permission will be changed\n");
+                           execl("/bin/chmod", "chmod", "u=rwx,g=rw,o=", argv[i], NULL);
+                           perror("Failed to execute command");
+                           exit(EXIT_FAILURE);
+                
+                     }
+
+                     exit(0);
+            } }
+        w = wait(&wstatus1);
+        waitpid(pid1, &wstatus1, 0);
+        if(WIFEXITED(wstatus1)) {
+                printf("The process with PID %d has ended with the exit code %d.\n", w, WEXITSTATUS(wstatus1));
+            }
+        
+        waitpid(pid2, &wstatus2, 0);
+        if(WIFEXITED(wstatus2)) {
+            if(isC){
+            int read_pipe;
+
+            read_pipe = read(pipeArr[0], buff, sizeof(buff));
+
+            if (read_pipe < 0) {
+                    perror("Error reading from pipe");
+                    exit(EXIT_FAILURE);
+            }
+
+        int errors = 0;
+        int warnings = 0;
+
+         char *separator;
+         separator = strtok(NULL, ":");
+         errors = atoi(separator);
+
+         separator = strtok(NULL, ":");
+         warnings = atoi(separator);
+                    
+            
+        /*while (read_pipe > 0) {
+            if (strstr(buff, "error") != NULL) 
+                errors++;
+             else 
+               if (strstr(buff, "warning") != NULL) {
+                  warnings++;
+                }
+    }*/
+
+    int score = 0;
+    if (errors == 0 && warnings == 0) {
+        score = 10;
+    } else if (errors > 0) {
+        score = 1;
+    } else if (warnings > 10) {
+        score = 2;
+    } else {
+        score = 2 + 8 * (10 - warnings) / 10;
+    }
+
+    printf("Score: %d\n", score);
+    }
+    
+
+               //printf("Child process 2 with pid %d, exited, status code %d\n", WEXITSTATUS(wstatus2));
+         printf("The process with PID %d has ended with the exit code %d.\n", pid2, WEXITSTATUS(wstatus2));
+
+        }
+    } 
+
+    return 0;
+ }     
+
